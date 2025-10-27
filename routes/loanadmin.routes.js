@@ -71,5 +71,6 @@ router.put("/verify-documents/:leadId", loanController.bulkVerifyDocuments);
 router.put("/verify-document/:leadId/:docId", loanController.verifyDocument);
 router.put("/process/:leadId", loanController.processLoan);
 router.put("/approve/:leadId", loanController.approveLoan);
+router.put("/update-status/:leadId", loanController.updateLoanLeadStatus);
 
 module.exports = router;

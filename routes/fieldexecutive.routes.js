@@ -26,13 +26,13 @@ const fieldExecutiveController = require('../controllers/fieldexecutive.controll
 const { authenticate, isFieldExecutive } = require('../middleware/auth');
 const router = express.Router();
 
-// Login ==============================================================================================================
+// Login
 router.post("/login", authController.login);
 
-// Auth routes=========================================================================================================
+// Auth routes
 router.use(authenticate, isFieldExecutive);
 
-// Leads===============================================================================================================
+// Leads
 router.get('/getMyLeads', fieldExecutiveController.getMyLeads);
 router.put("/lead/:id/enquiry", fieldExecutiveController.updateEnquiryDetails); // Field executive updates their assigned lead's enquiry details
 router.put("/lead/:id/status", fieldExecutiveController.updateStatus); // Field executive updates general status (e.g., in-progress, rescheduled)

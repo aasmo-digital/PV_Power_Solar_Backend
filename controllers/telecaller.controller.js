@@ -1,210 +1,37 @@
-// const leadModel = require("../models/lead.model");
-
-// // Create Lead
-// exports.createLead = async (req, res) => {
-//     try {
-//         const { name, email, phone, source } = req.body;
-
-//         const lead = new leadModel({
-//             name,
-//             email,
-//             phone,
-//             source,
-//             createdBy: req.user.id
-//         });
-
-//         await lead.save();
-//         res.status(201).json({ message: "Lead created successfully", lead });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
-
-// // Get all Leads (Admin, SuperAdmin, Telecaller)
-// exports.getAllLeads = async (req, res) => {
-//     try {
-//         let query = {};
-
-//         // Agar telecaller hai -> usko sabhi leads dikhengi
-//         if (req.user.role === "telecaller") {
-//             query = {}; // Telecaller ko sab dikhegi
-//         }
-
-//         // Agar field executive hai -> usko sirf uske assigned leads
-//         if (req.user.role === "fieldexecutive") {
-//             query = { assignedTo: req.user.id };
-//         }
-
-//         const leads = await leadModel.find(query).populate("assignedTo createdBy", "fullName email role");
-//         res.status(200).json(leads);
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
-
-// // Update Lead (edit, status change, assign)
-// // exports.updateLead = async (req, res) => {
-// //     try {
-// //         const { id } = req.params;
-// //         const { name, email, phone, status, assignedTo, remark } = req.body;
-
-// //         let lead = await leadModel.findById(id);
-// //         if (!lead) return res.status(404).json({ message: "Lead not found" });
-
-// //         if (name) lead.name = name;
-// //         if (email) lead.email = email;
-// //         if (phone) lead.phone = phone;
-// //         if (status) lead.status = status;
-// //         if (assignedTo) lead.assignedTo = assignedTo;
-
-// //         if (remark) {
-// //             lead.remarks.push({ text: remark, addedBy: req.user.id });
-// //         }
-
-// //         await lead.save();
-
-// //         // 🔥 Populate assignedTo details from User model
-// //         lead = await leadModel.findById(id)
-// //             .populate("assignedTo", "fullName email contact state district city area role");
-
-// //         res.status(200).json({ message: "Lead updated successfully", lead });
-// //     } catch (err) {
-// //         console.error(err);
-// //         res.status(500).json({ message: "Server error" });
-// //     }
-// // };
-
-// exports.updateLead = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const {
-//       promoter,
-//       mobileNo,
-//       structureType,
-//       customerName,
-//       plantType,
-//       kwRequired,
-//       account1,
-//       mpeb1,
-//       portal1,
-//       bank,
-//       totalProjectCost,
-//       dcrInvoice,
-//       receivedAmount,
-//       pendingAmount,
-//       tat,
-//       status,
-//       remark,
-//     } = req.body;
-
-//     let lead = await leadModel.findById(id);
-//     if (!lead) return res.status(404).json({ message: "Lead not found" });
-
-//     // ✅ Sirf apna lead update kar sakta hai
-//     if (lead.assignedTo.toString() !== req.user.id) {
-//       return res.status(403).json({ message: "Not authorized to update this lead" });
-//     }
-
-//     // ✅ Enquiry details update (partial allowed)
-//     lead.enquiryDetails = {
-//       ...lead.enquiryDetails,
-//       promoter,
-//       mobileNo,
-//       structureType,
-//       customerName,
-//       plantType,
-//       kwRequired,
-//       account1,
-//       mpeb1,
-//       portal1,
-//       bank,
-//       totalProjectCost,
-//       dcrInvoice,
-//       receivedAmount,
-//       pendingAmount,
-//       tat,
-//     };
-
-//     // ✅ Status update
-//     if (status) lead.status = status;
-
-//     // ✅ Remark add
-//     if (remark) {
-//       lead.remarks.push({ text: remark, addedBy: req.user.id });
-//     }
-
-//     await lead.save();
-
-//     // ✅ Populate data for response
-//     lead = await leadModel.findById(id)
-//       .populate("assignedTo", "fullName email role")
-//       .populate("createdBy", "fullName email role");
-
-//     res.status(200).json({
-//       message: "Lead updated successfully by field executive",
-//       lead,
-//     });
-//   } catch (err) {
-//     console.error("❌ Error updating lead by executive:", err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-// // Delete Lead
-// exports.deleteLead = async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         await leadModel.findByIdAndDelete(id);
-//         res.status(200).json({ message: "Lead deleted successfully" });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
-
-// // telecaller.controller.js
-// exports.assignLead = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { fieldExecutive, loanAdmin, mpebAdmin, installationAdmin } = req.body;
-
-//     let lead = await leadModel.findById(id);
-//     if (!lead) return res.status(404).json({ message: "Lead not found" });
-
-//     if (fieldExecutive) lead.assignedTo.fieldExecutive = fieldExecutive;
-//     if (loanAdmin) lead.assignedTo.loanAdmin = loanAdmin;
-//     if (mpebAdmin) lead.assignedTo.mpebAdmin = mpebAdmin;
-//     if (installationAdmin) lead.assignedTo.installationAdmin = installationAdmin;
-
-//     lead.status = "assigned"; // mark as assigned
-//     await lead.save();
-
-//     res.status(200).json({ message: "Lead assigned successfully", lead });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-
 const leadModel = require("../models/lead.model");
-const User = require("../models/user.model"); // Added to populate assignedTo details
+const User = require("../models/user.model");
 
-// Create Lead (Can be used by SuperAdmin/Telecaller)
+
+const updateLeadStatus = (lead, newStatus, remark, userId, userRole) => {
+    lead.status = newStatus;
+    lead.statusHistory.push({
+        status: newStatus,
+        updatedBy: userId,
+        updatedAt: new Date(),
+        remark: remark,
+        role: userRole
+    });
+    if (lead.currentStatusDetail) {
+        lead.currentStatusDetail[userRole] = newStatus;
+    }
+};
+
 exports.createLead = async (req, res) => {
     try {
-        const { name, email, phone, source, enquiryDetails } = req.body;
+        const { name, email, phone, source, enquiryDetails, remark } = req.body;
 
         const lead = new leadModel({
             name,
             email,
             phone,
-            source: source || "telecaller", // Default source
+            source: source || "telecaller",
             createdBy: req.user.id,
-            enquiryDetails: enquiryDetails || {} // Initialize if not provided
+            enquiryDetails: enquiryDetails || {},
+            currentStatusDetail: { telecaller: "new" } // Initial status
         });
+
+        // Add initial status to history
+        updateLeadStatus(lead, "new", remark || "Lead created by telecaller.", req.user.id, req.user.role);
 
         await lead.save();
         res.status(201).json({ message: "Lead created successfully", lead });
@@ -213,44 +40,6 @@ exports.createLead = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
-
-// Get all Leads (Admin, SuperAdmin, Telecaller, Field Executive - filtered)
-// exports.getAllLeads = async (req, res) => {
-//     try {
-//         let query = {};
-
-//         // If telecaller or superadmin or accounting admin, they can see all leads
-//         if (["telecaller", "superadmin", "accounting_admin", "admin"].includes(req.user.role)) {
-//             query = {};
-//         }
-//         // If field executive, only assigned leads
-//         else if (req.user.role === "fieldexecutive") {
-//             query = { assignedTo: req.user.id };
-//         }
-//         // If installation admin, only leads assigned to them for installation
-//         else if (req.user.role === "installation_admin") {
-//             query = { assignedTo: req.user.id, status: "installation" };
-//         }
-//         // If mpeb admin, only leads assigned to them for mpeb process
-//         else if (req.user.role === "mpeb_admin") {
-//             query = { assignedTo: req.user.id, status: "mpeb-process" };
-//         }
-//         // If loan admin, only leads assigned to them for loan process
-//         else if (req.user.role === "loan_admin") {
-//             query = { assignedTo: req.user.id, status: "loan-process" };
-//         }
-
-
-//         const leads = await leadModel.find(query)
-//             .populate("assignedTo", "fullName email role")
-//             .populate("createdBy", "fullName email role");
-
-//         res.status(200).json(leads);
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
 
 exports.getAllLeads = async (req, res) => {
     try {
@@ -331,11 +120,10 @@ exports.getAllLeads = async (req, res) => {
     }
 };
 
-// Update Lead (General update by Telecaller/SuperAdmin - not restricted by assignedTo)
 exports.updateLeadGeneral = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email, phone, source, status, remark } = req.body; // Can update general fields
+        const { name, email, phone, source, status, remark, nextFollowUpDate } = req.body;
 
         let lead = await leadModel.findById(id);
         if (!lead) return res.status(404).json({ message: "Lead not found" });
@@ -344,11 +132,18 @@ exports.updateLeadGeneral = async (req, res) => {
         if (email) lead.email = email;
         if (phone) lead.phone = phone;
         if (source) lead.source = source;
-        if (status) lead.status = status; // Telecaller can update status
+
+        if (status) {
+            updateLeadStatus(lead, status, remark || `Status updated by ${req.user.role}.`, req.user.id, req.user.role);
+        }
 
         if (remark) {
             lead.remarks.push({ text: remark, addedBy: req.user.id });
         }
+
+        if (nextFollowUpDate) lead.nextFollowUpDate = nextFollowUpDate;
+        else if (status !== "fe_rescheduled_followup" && status !== "rescheduled") lead.nextFollowUpDate = undefined;
+
 
         await lead.save();
 
@@ -363,7 +158,6 @@ exports.updateLeadGeneral = async (req, res) => {
     }
 };
 
-// Delete Lead (by Telecaller/SuperAdmin)
 exports.deleteLead = async (req, res) => {
     try {
         const { id } = req.params;
@@ -376,61 +170,14 @@ exports.deleteLead = async (req, res) => {
     }
 };
 
-// Assign Lead (by Telecaller/SuperAdmin)
-// exports.assignLead = async (req, res) => {
-//     try {
-//         const { id } = req.params;
-//         const { assignedTo } = req.body; // User ID of the executive/admin to assign to
-
-//         let lead = await leadModel.findById(id);
-//         if (!lead) return res.status(404).json({ message: "Lead not found" });
-
-//         // Validate if assignedTo user exists and is a valid role for assignment
-//         const targetUser = await User.findById(assignedTo);
-//         if (!targetUser) {
-//             return res.status(400).json({ message: "Assigned user not found" });
-//         }
-//         // You might want to add role-specific checks here, e.g., cannot assign to a telecaller
-//         const assignableRoles = ["fieldexecutive", "installation_admin", "mpeb_admin", "loan_admin", "accounting_admin"];
-//         if (!assignableRoles.includes(targetUser.role)) {
-//             return res.status(400).json({ message: `Cannot assign lead to a user with role ${targetUser.role}` });
-//         }
-
-//         lead.assignedTo = assignedTo;
-//         // Update status based on the role it's assigned to using the exact enum values
-//         if (targetUser.role === "fieldexecutive") {
-//             lead.status = "assigned_to_fieldexecutive"; // Correct enum value
-//         } else if (targetUser.role === "installation_admin") {
-//             lead.status = "assigned_to_installationadmin"; // Correct enum value
-//         } else if (targetUser.role === "mpeb_admin") {
-//             lead.status = "assigned_to_mpebadmin"; // Correct enum value
-//         } else if (targetUser.role === "loan_admin") {
-//             lead.status = "assigned_to_loanadmin"; // Correct enum value
-//         } else if (targetUser.role === "accounting_admin") {
-//             lead.status = "assigned_to_accounting"; // Correct enum value
-//         } else {
-//             // Fallback for unexpected roles, though assignableRoles check should prevent this
-//             return res.status(400).json({ message: "Invalid role for assignment" });
-//         }
-
-//         await lead.save();
-
-//         res.status(200).json({ message: "Lead assigned successfully", lead });
-//     } catch (err) {
-//         console.error("❌ Error assigning lead:", err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
-
 exports.assignLead = async (req, res) => {
     try {
         const { id } = req.params;
-        const { assignedTo } = req.body; // User ID of the executive/admin to assign to
+        const { assignedTo } = req.body;
 
         let lead = await leadModel.findById(id);
         if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-        // Validate if assignedTo user exists and is a valid role for assignment
         const targetUser = await User.findById(assignedTo);
         if (!targetUser) {
             return res.status(400).json({ message: "Assigned user not found" });
@@ -440,23 +187,26 @@ exports.assignLead = async (req, res) => {
             return res.status(400).json({ message: `Cannot assign lead to a user with role ${targetUser.role}` });
         }
 
-        // <-- यहाँ बदलाव: assignedTo को सीधे ObjectId असाइन करें
         lead.assignedTo = assignedTo;
 
-        // Update status based on the role it's assigned to using the exact enum values
+        let newStatus;
         if (targetUser.role === "fieldexecutive") {
-            lead.status = "assigned_to_fieldexecutive";
+            newStatus = "assigned_to_fieldexecutive";
         } else if (targetUser.role === "installation_admin") {
-            lead.status = "assigned_to_installationadmin";
+            newStatus = "assigned_to_installationadmin";
         } else if (targetUser.role === "mpeb_admin") {
-            lead.status = "assigned_to_mpebadmin";
+            newStatus = "assigned_to_mpebadmin";
         } else if (targetUser.role === "loan_admin") {
-            lead.status = "assigned_to_loanadmin";
+            newStatus = "assigned_to_loanadmin";
         } else if (targetUser.role === "accounting_admin") {
-            lead.status = "assigned_to_accounting";
+            newStatus = "assigned_to_accounting";
         } else {
             return res.status(400).json({ message: "Invalid role for assignment" });
         }
+
+        // Update main status, history, and currentStatusDetail
+        updateLeadStatus(lead, newStatus, `Lead assigned to ${targetUser.role} (${targetUser.fullName}).`, req.user.id, req.user.role);
+
 
         await lead.save();
 
@@ -513,40 +263,6 @@ exports.getLeadsSummary = async (req, res) => {
         res.status(500).json({ message: "Server error occurred while fetching lead summary." });
     }
 };
-
-// ************ नया फंक्शन: यूज़र्स का सारांश प्राप्त करें ************
-// exports.getUsersSummary = async (req, res) => {
-//     try {
-//         // आप यहां भी डेट रेंज या अन्य फिल्टर्स (जैसे req.query.role) जोड़ सकते हैं
-//         const usersByRole = await User.aggregate([
-//             {
-//                 $group: {
-//                     _id: "$role",
-//                     count: { $sum: 1 }
-//                 }
-//             },
-//             {
-//                 $project: {
-//                     role: "$_id",
-//                     count: 1,
-//                     _id: 0
-//                 }
-//             }
-//         ]);
-
-//         const totalUsers = await User.countDocuments({}); // सभी यूज़र्स की गणना
-
-//         const dashboardUsersSummary = {
-//             totalUsers: totalUsers,
-//             usersByRole: usersByRole,
-//         };
-
-//         res.status(200).json(dashboardUsersSummary);
-//     } catch (err) {
-//         console.error("Error in getUsersSummary:", err);
-//         res.status(500).json({ message: "Server error occurred while fetching user summary." });
-//     }
-// };
 
 exports.getUsersSummary = async (req, res) => {
     try {
