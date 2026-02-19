@@ -12,7 +12,6 @@ const rolesEnum = [
     "accounting_admin"
 ];
 
-// Example static enums (aap chahe to DB collection bana ke manage kar sakte ho)
 const statesEnum = ["Madhya Pradesh", "Maharashtra", "Rajasthan", "Gujarat"];
 const districtsEnum = ["Indore", "Bhopal", "Ujjain", "Nagpur", "Jaipur", "Ahmedabad"];
 const citiesEnum = ["Indore City", "Bhopal City", "Ujjain City", "Nagpur City", "Jaipur City", "Ahmedabad City"];
@@ -20,7 +19,7 @@ const areasEnum = ["Vijay Nagar", "Rajwada", "TT Nagar", "Old City", "Civil Line
 
 const userSchema = new mongoose.Schema(
     {
-        profileImage: { type: String, required: true }, // file path or URL
+        profileImage: { type: String, required: true },
         fullName: { type: String, required: true },
         email: { type: String, required: true, unique: true },
         contactNo: { type: String, required: true },
@@ -41,7 +40,6 @@ const userSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// Password hashing before save
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) return next();
     const salt = await bcrypt.genSalt(10);
@@ -49,7 +47,6 @@ userSchema.pre("save", async function (next) {
     next();
 });
 
-// Compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };

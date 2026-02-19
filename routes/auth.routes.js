@@ -5,7 +5,6 @@ const { authenticate } = require("../middleware/auth");
 
 router.post("/register", authController.register);
 router.post("/login", authController.login);
-
-router.get("/assignable-users", authenticate, authController.getAssignableUsers); // <--- यहाँ जोड़ें
+router.get("/assignable-users", authenticate, authController.getAssignableUsers);
 
 module.exports = router;

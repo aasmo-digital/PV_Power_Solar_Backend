@@ -62,10 +62,7 @@ exports.getInstallationDetails = async (req, res) => {
             return res.status(404).json({ message: "Lead not found" });
         }
 
-        // Authorization check for Installation Admin to view details
         if (req.user.role === 'installation_admin' && lead.assignedTo && lead.assignedTo.toString() !== req.user.id && !lead.statusHistory.some(h => h.updatedBy.toString() === req.user.id)) {
-            // Allow if currently assigned OR has worked on it before
-            // We'll allow Superadmin and Admin through middleware, so this check is primarily for the specific admin
         }
 
         res.status(200).json({ data: lead });
@@ -83,14 +80,9 @@ exports.addInstallationTechnicians = async (req, res) => {
         let lead = await leadModel.findById(leadId);
         if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-        // --- MODIFIED AUTHORIZATION LOGIC ---
-        // This check ensures that only an 'installation_admin' can proceed.
-        // The previous condition requiring the lead to be *assigned* to the specific admin (lead.assignedTo.toString() !== req.user.id)
-        // has been removed. This means any logged-in installation_admin can now add technicians to any installation lead.
         if (req.user.role !== 'installation_admin') {
             return res.status(403).json({ message: "Not authorized. Only Installation Admins can modify technicians." });
         }
-        // --- END MODIFIED AUTHORIZATION LOGIC ---
 
         if (!fullName || !contactNo) {
             return res.status(400).json({ message: "Technician full name and contact number are required." });
@@ -103,7 +95,6 @@ exports.addInstallationTechnicians = async (req, res) => {
             lead.installationDetails.assignedTechnicians = [];
         }
 
-        // Check if a technician with the same contact number already exists for this lead
         const existingTechnician = lead.installationDetails.assignedTechnicians.some(
             tech => tech.contactNo === contactNo
         );
@@ -122,11 +113,10 @@ exports.addInstallationTechnicians = async (req, res) => {
 
         lead.installationDetails.assignedTechnicians.push(newTechnician);
 
-        // Update lead status, but keep its current main status as the change is internal to installationDetails
         updateLeadStatus(lead, lead.status, `Added new technician: ${fullName}.`, req.user.id, req.user.role);
         await lead.save();
 
-        const updatedLead = await leadModel.findById(leadId) // Re-populate for response
+        const updatedLead = await leadModel.findById(leadId)
             .populate("installationDetails.assignedTechnicians.addedBy", "fullName email role");
 
         res.status(200).json({ message: "Technician added successfully", lead: updatedLead });
@@ -163,7 +153,7 @@ exports.removeInstallationTechnician = async (req, res) => {
         updateLeadStatus(lead, lead.status, `Removed a technician.`, req.user.id, req.user.role);
         await lead.save();
 
-        const updatedLead = await leadModel.findById(leadId) // Re-populate for response
+        const updatedLead = await leadModel.findById(leadId)
             .populate("installationDetails.assignedTechnicians.addedBy", "fullName email role");
 
         res.status(200).json({ message: "Technician removed successfully", lead: updatedLead });
@@ -181,14 +171,9 @@ exports.updateInstallationStatus = async (req, res) => {
         let lead = await leadModel.findById(leadId);
         if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-        // --- MODIFIED AUTHORIZATION LOGIC ---
-        // This check ensures that only an 'installation_admin' can proceed.
-        // The previous condition requiring the lead to be *assigned* to the specific admin (lead.assignedTo.toString() !== req.user.id)
-        // has been removed. This means any logged-in installation_admin can now update the overall status for any installation lead.
-        if (req.user.role !== 'installation_admin') {
+        if (req.user.role !== 'installation_admin' && !['superadmin', 'admin'].includes(req.user.role)) {
             return res.status(403).json({ message: "Not authorized. Only Installation Admins can update this installation status." });
         }
-        // --- END MODIFIED AUTHORIZATION LOGIC ---
 
         if (!lead.installationDetails) {
             lead.installationDetails = {};
@@ -200,8 +185,18 @@ exports.updateInstallationStatus = async (req, res) => {
 
         if (status) {
             updateLeadStatus(lead, status, remark || `Installation status updated to ${status}.`, req.user.id, req.user.role);
+
+            if (status === "installation_completed_final") {
+                const accountingAdmin = await User.findOne({ role: 'accounting_admin' }).sort({ createdAt: 1 });
+                if (accountingAdmin) {
+                    lead.assignedTo = accountingAdmin._id;
+                    updateLeadStatus(lead, 'assigned_to_accounting', `Lead automatically assigned to Accounting Admin (${accountingAdmin.fullName}) as installation is completed.`, req.user.id, req.user.role);
+                } else {
+                    console.warn("No Accounting Admin found for automatic assignment of lead:", lead._id);
+                }
+            }
+
         } else if (remark) {
-            // If only a remark is provided without a status change, add it to general remarks
             lead.remarks.push({ text: remark, addedBy: req.user.id });
         }
 
@@ -221,14 +216,9 @@ exports.updateInstallationPhase = async (req, res) => {
         let lead = await leadModel.findById(leadId);
         if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-        // --- MODIFIED AUTHORIZATION LOGIC ---
-        // This check ensures that only an 'installation_admin' can proceed.
-        // The previous condition requiring the lead to be *assigned* to the specific admin (lead.assignedTo.toString() !== req.user.id)
-        // has been removed. This means any logged-in installation_admin can now manage phases for any installation lead.
         if (req.user.role !== 'installation_admin') {
             return res.status(403).json({ message: "Not authorized. Only Installation Admins can manage installation phases." });
         }
-        // --- END MODIFIED AUTHORIZATION LOGIC ---
 
         if (!lead.installationDetails) {
             lead.installationDetails = {};
@@ -261,7 +251,6 @@ exports.updateInstallationPhase = async (req, res) => {
             phase.updatedAt = new Date();
         }
 
-        // Handle document uploads for the phase
         if (req.files && Object.keys(req.files).length > 0) {
             if (!phase.documents) phase.documents = [];
             for (const field in req.files) {
@@ -273,7 +262,7 @@ exports.updateInstallationPhase = async (req, res) => {
                         phase.documents[existingDocIndex].url = file.location;
                         phase.documents[existingDocIndex].uploadedBy = req.user.id;
                         phase.documents[existingDocIndex].uploadedAt = new Date();
-                        phase.documents[existingDocIndex].verificationStatus = "pending"; // Reset status on re-upload
+                        phase.documents[existingDocIndex].verificationStatus = "pending";
                     } else {
                         phase.documents.push({
                             type: docType,
@@ -287,9 +276,8 @@ exports.updateInstallationPhase = async (req, res) => {
             }
         }
 
-        // Update overall lead status based on phase status - MODIFIED
         let newLeadOverallStatus = lead.status;
-        const normalizedPhaseName = normalizePhaseNameForEnum(phase.name); // Use helper
+        const normalizedPhaseName = normalizePhaseNameForEnum(phase.name);
 
         if (status === "completed") {
             const allPhasesCompleted = lead.installationDetails.phases.every(p => p.status === "completed");
@@ -302,16 +290,16 @@ exports.updateInstallationPhase = async (req, res) => {
         } else if (status === "in-progress") {
             newLeadOverallStatus = `installation_${normalizedPhaseName}_started`;
         } else if (status === "halted") {
-            newLeadOverallStatus = "installation_halted"; // Use a generic halted for phases
+            newLeadOverallStatus = "installation_halted";
         } else if (status === "pending" && isNewPhase === 'true') {
-            newLeadOverallStatus = "installation_scheduled"; // Initial state for new phase
+            newLeadOverallStatus = "installation_scheduled";
         }
 
         updateLeadStatus(lead, newLeadOverallStatus, remark || `Installation phase "${phase.name}" ${isNewPhase === 'true' ? 'added' : 'updated'}. Status: ${status}.`, req.user.id, req.user.role);
 
 
         await lead.save();
-        const updatedLead = await leadModel.findById(leadId) // Re-populate for response
+        const updatedLead = await leadModel.findById(leadId)
             .populate("installationDetails.phases.updatedBy", "fullName email role")
             .populate("installationDetails.phases.documents.uploadedBy", "fullName email role")
             .populate("installationDetails.assignedTechnicians.addedBy", "fullName email role");
@@ -331,14 +319,9 @@ exports.deleteInstallationPhase = async (req, res) => {
         let lead = await leadModel.findById(leadId);
         if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-        // --- MODIFIED AUTHORIZATION LOGIC ---
-        // This check ensures that only an 'installation_admin' can proceed.
-        // The previous condition requiring the lead to be *assigned* to the specific admin (lead.assignedTo.toString() !== req.user.id)
-        // has been removed. This means any logged-in installation_admin can now delete phases for any installation lead.
         if (req.user.role !== 'installation_admin') {
             return res.status(403).json({ message: "Not authorized. Only Installation Admins can delete installation phases." });
         }
-        // --- END MODIFIED AUTHORIZATION LOGIC ---
 
         if (!lead.installationDetails || !lead.installationDetails.phases) {
             return res.status(404).json({ message: "No installation phases found for this lead." });
@@ -356,7 +339,7 @@ exports.deleteInstallationPhase = async (req, res) => {
         updateLeadStatus(lead, lead.status, `Deleted an installation phase.`, req.user.id, req.user.role);
         await lead.save();
 
-        const updatedLead = await leadModel.findById(leadId) // Re-populate for response
+        const updatedLead = await leadModel.findById(leadId)
             .populate("installationDetails.phases.updatedBy", "fullName email role");
 
         res.status(200).json({ message: "Installation phase deleted successfully", lead: updatedLead });

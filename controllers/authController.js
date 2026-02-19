@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require("../models/user.model"); // Ensure this path is correct
+const User = require("../models/user.model");
 
 exports.register = async (req, res) => {
   try {
@@ -19,15 +19,13 @@ exports.register = async (req, res) => {
       qualifications,
     } = req.body || {};
 
-    // Profile Image URL (from DigitalOcean Spaces via multer + uploadToSpaces)
     let profileImage = null;
     if (req.file && req.file.location) {
       profileImage = req.file.location;
-    } else if (req.body.profileImage) { // Fallback if image comes as URL directly
+    } else if (req.body.profileImage) {
       profileImage = req.body.profileImage;
     }
 
-    // Required field check (adjust as per your needs for different roles)
     if (
       !profileImage ||
       !fullName ||
@@ -42,18 +40,15 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Required fields are missing" });
     }
 
-    // Validate role
     if (!User.schema.path("role").enumValues.includes(role)) {
       return res.status(400).json({ message: "Invalid role selected" });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User with this email already exists" });
     }
 
-    // Password hashing is handled by pre-save hook in user.model.js
     const newUser = new User({
       profileImage,
       fullName,
@@ -64,7 +59,7 @@ exports.register = async (req, res) => {
       district,
       city,
       area,
-      password, // Hashing done in model
+      password,
       role,
       age,
       qualifications,
@@ -93,7 +88,6 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login User (for all roles)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -108,7 +102,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials", errorCode: "INVALID_CREDENTIALS" });
     }
 
-    const isMatch = await user.comparePassword(password); // Using method from user.model.js
+    const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials", errorCode: "INVALID_CREDENTIALS" });
     }
@@ -116,7 +110,7 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "30d" } // Increased expiry
+      { expiresIn: "30d" }
     );
 
     res.status(200).json({
@@ -205,14 +199,12 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// ************ नया फंक्शन: यूज़र अपडेट करें ************
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
     if (updates.password) {
-      // पासवर्ड अपडेट होने पर हैश करें
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(updates.password, salt);
     }
@@ -228,7 +220,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// ************ नया फंक्शन: यूज़र डिलीट करें ************
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -244,15 +235,15 @@ exports.deleteUser = async (req, res) => {
 };
 
 exports.getAssignableUsers = async (req, res) => {
-    try {
-        const assignableRoles = ["fieldexecutive", "installation_admin", "mpeb_admin", "loan_admin", "accounting_admin"];
-        
-        const users = await User.find({ role: { $in: assignableRoles } })
-                                .select("fullName role profileImage"); // प्रोफाइल इमेज भी भेजें यदि आप Avatar में उपयोग करना चाहते हैं
+  try {
+    const assignableRoles = ["fieldexecutive", "installation_admin", "mpeb_admin", "loan_admin", "accounting_admin"];
 
-        res.status(200).json({ data: users, total: users.length });
-    } catch (error) {
-        console.error("Error in getAssignableUsers:", error);
-        res.status(500).json({ message: "Server error occurred while fetching assignable users." });
-    }
+    const users = await User.find({ role: { $in: assignableRoles } })
+      .select("fullName role profileImage");
+
+    res.status(200).json({ data: users, total: users.length });
+  } catch (error) {
+    console.error("Error in getAssignableUsers:", error);
+    res.status(500).json({ message: "Server error occurred while fetching assignable users." });
+  }
 };

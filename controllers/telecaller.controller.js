@@ -27,10 +27,9 @@ exports.createLead = async (req, res) => {
             source: source || "telecaller",
             createdBy: req.user.id,
             enquiryDetails: enquiryDetails || {},
-            currentStatusDetail: { telecaller: "new" } // Initial status
+            currentStatusDetail: { telecaller: "new" }
         });
 
-        // Add initial status to history
         updateLeadStatus(lead, "new", remark || "Lead created by telecaller.", req.user.id, req.user.role);
 
         await lead.save();
@@ -44,14 +43,13 @@ exports.createLead = async (req, res) => {
 exports.getAllLeads = async (req, res) => {
     try {
         let query = {};
-        const { globalSearch, name, email, phone, status, assignedTo, createdBy, page, limit, sortBy, sortDirection } = req.query; // 'createdBy' का नाम 'createdTo' से 'createdBy' में बदला
+        const { globalSearch, name, email, phone, status, assignedTo, createdBy, page, limit, sortBy, sortDirection } = req.query;
 
-        // यूज़र रोल के आधार पर बेस क्वेरी शर्तें
         if (["telecaller", "superadmin", "accounting_admin", "admin"].includes(req.user.role)) {
-            query = {}; // इन रोल्स के लिए सभी लीड्स
+            query = {};
         }
         else if (req.user.role === "fieldexecutive") {
-            query = { assignedTo: req.user.id }; // सीधे assignedTo ObjectId को क्वेरी करें
+            query = { assignedTo: req.user.id };
         }
         else if (req.user.role === "installation_admin") {
             query = { assignedTo: req.user.id, status: "assigned_to_installationadmin" };
@@ -63,16 +61,13 @@ exports.getAllLeads = async (req, res) => {
             query = { assignedTo: req.user.id, status: "assigned_to_loanadmin" };
         }
 
-        // Frontend DataTable से आने वाले अतिरिक्त फिल्टर लागू करें
         if (name) query.name = { $regex: name, $options: 'i' };
         if (email) query.email = { $regex: email, $options: 'i' };
         if (phone) query.phone = { $regex: phone, $options: 'i' };
         if (status) query.status = status;
-        if (assignedTo) query.assignedTo = assignedTo; // अगर फ्रंटएंड assignee की ID भेज रहा है
-        if (createdBy) query.createdBy = createdBy; // अगर फ्रंटएंड creator की ID भेज रहा है
+        if (assignedTo) query.assignedTo = assignedTo;
+        if (createdBy) query.createdBy = createdBy;
 
-
-        // Global search हैंडल करें
         if (globalSearch) {
             const searchRegex = { $regex: globalSearch, $options: 'i' };
             query.$or = [
@@ -80,13 +75,9 @@ exports.getAllLeads = async (req, res) => {
                 { email: searchRegex },
                 { phone: searchRegex },
                 { status: searchRegex },
-                // पॉपुलेटेड फील्ड्स (जैसे assignedTo.fullName) में सर्च करने के लिए
-                // एग्रीगेशन या अलग क्वेरी की आवश्यकता होती है।
-                // अभी के लिए, हम सिर्फ डायरेक्ट फ़ील्ड्स में सर्च कर रहे हैं।
             ];
         }
 
-        // Pagination और Sorting
         const pageNum = parseInt(page) || 1;
         const limitNum = parseInt(limit) || 10;
         const skip = (pageNum - 1) * limitNum;
@@ -95,7 +86,7 @@ exports.getAllLeads = async (req, res) => {
         if (sortBy) {
             sortOptions[sortBy] = sortDirection === 'desc' ? -1 : 1;
         } else {
-            sortOptions.createdAt = -1; // डिफ़ॉल्ट रूप से नए को पहले सॉर्ट करें
+            sortOptions.createdAt = -1;
         }
 
         const leads = await leadModel.find(query)
@@ -105,9 +96,8 @@ exports.getAllLeads = async (req, res) => {
             .skip(skip)
             .limit(limitNum);
 
-        const totalLeads = await leadModel.countDocuments(query); // Pagination के लिए कुल संख्या प्राप्त करें
+        const totalLeads = await leadModel.countDocuments(query);
 
-        // फ्रंटएंड DataTable के लिए अपेक्षित फॉर्मेट में प्रतिक्रिया भेजें
         res.status(200).json({
             data: leads,
             total: totalLeads,
@@ -115,7 +105,7 @@ exports.getAllLeads = async (req, res) => {
             limit: limitNum,
         });
     } catch (err) {
-        console.error("Error in getAllLeads:", err); // अधिक विस्तृत एरर लॉगिंग
+        console.error("Error in getAllLeads:", err);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -204,7 +194,6 @@ exports.assignLead = async (req, res) => {
             return res.status(400).json({ message: "Invalid role for assignment" });
         }
 
-        // Update main status, history, and currentStatusDetail
         updateLeadStatus(lead, newStatus, `Lead assigned to ${targetUser.role} (${targetUser.fullName}).`, req.user.id, req.user.role);
 
 
@@ -219,7 +208,7 @@ exports.assignLead = async (req, res) => {
 
 exports.getLeadsSummary = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query; // डेट रेंज फिल्टर्स
+        const { startDate, endDate } = req.query;
 
         let matchQuery = {};
         if (startDate && endDate) {
@@ -230,7 +219,7 @@ exports.getLeadsSummary = async (req, res) => {
         }
 
         const leadsByStatus = await leadModel.aggregate([
-            { $match: matchQuery }, // डेट रेंज फिल्टर
+            { $match: matchQuery },
             {
                 $group: {
                     _id: "$status",
@@ -248,11 +237,9 @@ exports.getLeadsSummary = async (req, res) => {
 
         const totalLeads = await leadModel.countDocuments(matchQuery);
 
-        // फ्रंटएंड के अपेक्षित फॉर्मेट में डेटा तैयार करें
         const dashboardLeadsSummary = {
             totalLeads: totalLeads,
             leadsByStatus: leadsByStatus,
-            // आप यहां pendingLeads, approvedLeads आदि की गणना कर सकते हैं
             pendingLeads: leadsByStatus.find(item => item.status === 'new')?.count || 0,
             approvedLeads: leadsByStatus.find(item => item.status === 'loan_approved')?.count || 0,
         };
@@ -267,25 +254,18 @@ exports.getLeadsSummary = async (req, res) => {
 exports.getUsersSummary = async (req, res) => {
     try {
         let matchQuery = {};
-        // Filter users based on the role of the requesting user
         if (req.user && req.user.role) {
             if (req.user.role === 'admin') {
-                // Admin can now see ALL roles, including superadmin and other admins
-                // जैसे सुपरएडमिन सभी रोल देख सकता है, वैसे ही एडमिन भी सभी रोल्स देख पाएगा
                 matchQuery.role = {
                     $in: ["superadmin", "admin", "telecaller", "fieldexecutive", "installation_admin", "mpeb_admin", "loan_admin", "accounting_admin"]
                 };
             } else if (req.user.role === 'superadmin') {
-                // Superadmin can see all roles
                 matchQuery.role = {
                     $in: ["superadmin", "admin", "telecaller", "fieldexecutive", "installation_admin", "mpeb_admin", "loan_admin", "accounting_admin"]
                 };
             }
-            // For other roles, if they need this summary, define their scope here.
-            // For example, a telecaller might see no users, or only users they created.
         }
 
-        // Add date range filter if provided (from req.query)
         const { startDate, endDate } = req.query;
         if (startDate && endDate) {
             matchQuery.createdAt = {
@@ -295,7 +275,7 @@ exports.getUsersSummary = async (req, res) => {
         }
 
         const usersByRole = await User.aggregate([
-            { $match: matchQuery }, // Apply role and date filters
+            { $match: matchQuery },
             {
                 $group: {
                     _id: "$role",
@@ -311,7 +291,7 @@ exports.getUsersSummary = async (req, res) => {
             }
         ]);
 
-        const totalUsers = await User.countDocuments(matchQuery); // कुल यूज़र्स की संख्या
+        const totalUsers = await User.countDocuments(matchQuery);
 
         const dashboardUsersSummary = {
             totalUsers: totalUsers,

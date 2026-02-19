@@ -20,12 +20,11 @@ const authenticate = (req, res, next) => {
 
     next();
   } catch (error) {
-    console.log("JWT Error:", error.message); 
+    console.log("JWT Error:", error.message);
     return res.status(401).json({ message: 'Invalid token.' });
   }
 };
 
-// Generic Role Check function
 const checkRole = (role) => {
   return (req, res, next) => {
     if (req.user.role !== role) {
@@ -35,7 +34,6 @@ const checkRole = (role) => {
   };
 };
 
-// Multiple Roles Check function
 const checkRoles = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -45,7 +43,6 @@ const checkRoles = (...roles) => {
   };
 };
 
-// Individual role functions (optional, for direct use like before)
 const isSuperAdmin = checkRole("superadmin");
 const isAdmin = checkRole("admin");
 const isTelecaller = checkRole("telecaller");
@@ -55,7 +52,6 @@ const isMPEBAdmin = checkRole("mpeb_admin");
 const isLoanAdmin = checkRole("loan_admin");
 const isAccountingAdmin = checkRole("accounting_admin");
 
-// Example for multiple roles
 const isAdminOrSuperAdmin = checkRoles("admin", "superadmin");
 const isTelecallerOrFieldExecutive = checkRoles("telecaller", "fieldexecutive");
 

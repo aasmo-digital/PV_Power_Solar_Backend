@@ -1,4 +1,5 @@
 const leadModel = require("../models/lead.model");
+const User = require("../models/user.model");
 
 const updateLeadStatus = (lead, newStatus, remark, userId, userRole, nextFollowUpDate = undefined) => {
     lead.status = newStatus;
@@ -12,7 +13,6 @@ const updateLeadStatus = (lead, newStatus, remark, userId, userRole, nextFollowU
     if (lead.currentStatusDetail) {
         lead.currentStatusDetail[userRole] = newStatus;
     }
-    // Update nextFollowUpDate
     if (newStatus === "fe_rescheduled_followup" && nextFollowUpDate) {
         lead.nextFollowUpDate = nextFollowUpDate;
     } else if (newStatus !== "fe_rescheduled_followup") {
@@ -22,19 +22,19 @@ const updateLeadStatus = (lead, newStatus, remark, userId, userRole, nextFollowU
 
 exports.getMyLeads = async (req, res) => {
   try {
-    const feId = req.user.id; // वर्तमान फील्ड एग्जीक्यूटिव की ID
+    const feId = req.user.id; 
         
     const leads = await leadModel.find({
       $or: [
         { assignedTo: feId },
-        { "statusHistory.updatedBy": feId }, // FE ने कभी स्टेटस अपडेट किया हो
-        { "remarks.addedBy": feId }          // FE ने कभी कोई रिमार्क जोड़ा हो
+        { "statusHistory.updatedBy": feId }, 
+        { "remarks.addedBy": feId }          
       ]
     })
       .populate("createdBy", "fullName email role")
       .populate("assignedTo", "fullName email role")
-      .populate("statusHistory.updatedBy", "fullName email role") // statusHistory में अपडेट करने वाले को पॉपुलेट करें
-      .populate("remarks.addedBy", "fullName email role"); // remarks में ऐड करने वाले को पॉपुलेट करें
+      .populate("statusHistory.updatedBy", "fullName email role") 
+      .populate("remarks.addedBy", "fullName email role"); 
 
     res.status(200).json({ data: leads, total: leads.length });
   } catch (err) {
@@ -49,13 +49,12 @@ exports.updateEnquiryDetails = async (req, res) => {
     const {
       promoter, mobileNo, structureType, customerName, plantType, kwRequired,
       account1, mpeb1, portal1, bank, totalProjectCost, dcrInvoice,
-      receivedAmount, pendingAmount, tat, remark // Status removed from general updateEnquiryDetails
+      receivedAmount, pendingAmount, tat, remark 
     } = req.body;
 
     let lead = await leadModel.findById(id);
     if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-    // Allow only currently assigned FE or SuperAdmin/Admin to update enquiry details
     if (req.user.role === 'fieldexecutive' && lead.assignedTo && lead.assignedTo.toString() !== req.user.id) {
       return res.status(403).json({ message: "Not authorized to update this lead's enquiry details" });
     }
@@ -76,11 +75,9 @@ exports.updateEnquiryDetails = async (req, res) => {
     if (receivedAmount !== undefined) updatedEnquiryDetails.receivedAmount = receivedAmount;
     if (pendingAmount !== undefined) updatedEnquiryDetails.pendingAmount = pendingAmount;
     if (tat !== undefined) updatedEnquiryDetails.tat = tat;
-    if (remark !== undefined) updatedEnquiryDetails.remark = remark; // Update remark in enquiryDetails directly if applicable
+    if (remark !== undefined) updatedEnquiryDetails.remark = remark; 
     lead.enquiryDetails = updatedEnquiryDetails;
 
-    // Only remark added without status change, if status is not provided separately.
-    // If FE updates a field and adds a remark, the remark is pushed to general remarks.
     if (remark) {
         lead.remarks.push({ text: remark, addedBy: req.user.id });
     }
@@ -109,13 +106,23 @@ exports.updateStatus = async (req, res) => {
     let lead = await leadModel.findById(id);
     if (!lead) return res.status(404).json({ message: "Lead not found" });
 
-    // Allow only currently assigned FE or SuperAdmin/Admin to update status
-    if (req.user.role === 'fieldexecutive' && lead.assignedTo && lead.assignedTo.toString() !== req.user.id) {
+    if (req.user.role === 'fieldexecutive' && lead.assignedTo && lead.assignedTo.toString() !== req.user.id && !['superadmin', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ message: "Not authorized to update this lead's status" });
     }
 
     if (status) {
         updateLeadStatus(lead, status, remark || `Status updated by field executive to ${status}.`, req.user.id, req.user.role, nextFollowUpDate);
+
+        if (status === 'loan_required') {
+            const loanAdmin = await User.findOne({ role: 'loan_admin' }).sort({ createdAt: 1 }); 
+            if (loanAdmin) {
+                lead.assignedTo = loanAdmin._id;
+                updateLeadStatus(lead, 'assigned_to_loanadmin', `Lead automatically assigned to Loan Admin (${loanAdmin.fullName}) as loan is required.`, req.user.id, req.user.role);
+            } else {
+                console.warn("No Loan Admin found for automatic assignment of lead:", lead._id);
+            }
+        }
+
     } else if (remark) {
         lead.remarks.push({ text: remark, addedBy: req.user.id });
     }

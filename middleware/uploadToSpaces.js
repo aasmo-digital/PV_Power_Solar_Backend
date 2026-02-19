@@ -22,7 +22,7 @@ const uploadFile = async (file) => {
         ACL: "public-read",
         ContentType: file.mimetype,
     };
-    
+
     await s3Client.send(new PutObjectCommand(params));
     return `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${fileKey}`;
 };
@@ -33,14 +33,14 @@ const uploadToSpaces = async (req, res, next) => {
     try {
         if (req.file) {
             const fileUrl = await uploadFile(req.file);
-            req.file.location = fileUrl; 
+            req.file.location = fileUrl;
         }
 
         if (req.files) {
             for (const field in req.files) {
                 for (const file of req.files[field]) {
                     const fileUrl = await uploadFile(file);
-                    file.location = fileUrl; 
+                    file.location = fileUrl;
                 }
             }
         }
